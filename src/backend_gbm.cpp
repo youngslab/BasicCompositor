@@ -1,6 +1,7 @@
 
 
 #include "backend_gbm.h"
+#include <EGL/eglext.h>
 
 namespace cx {
 
@@ -50,5 +51,9 @@ auto GbmBackend::commit() -> void {
   if (oldGbmBuffer) {
     gbm_surface_release_buffer(_gbmSurface, oldGbmBuffer);
   }
+}
+
+auto GbmBackend::getPlatform() -> EGLenum {
+	return EGL_PLATFORM_GBM_KHR;
 }
 } // namespace cx

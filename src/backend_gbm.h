@@ -11,6 +11,7 @@ namespace cx {
 struct IEglPlatform {
   virtual auto getNativeDisplayType() -> EGLNativeDisplayType = 0;
   virtual auto getNativeWindowType() -> EGLNativeWindowType = 0;
+  virtual auto getPlatform() -> EGLenum = 0;
 };
 
 class GbmBackend : public IEglPlatform {
@@ -29,6 +30,7 @@ public:
 
   auto getNativeDisplayType() -> EGLNativeDisplayType override;
   auto getNativeWindowType() -> EGLNativeWindowType override;
+  auto getPlatform() -> EGLenum override;
 };
 
 } // namespace cx

@@ -23,12 +23,11 @@
 int main(int argc, char **argv) {
 
   auto backend = cx::GbmBackend("/dev/dri/card0");
-
   auto nativeDisplay = backend.getNativeDisplayType();
   auto nativeWindow = backend.getNativeWindowType();
+  auto platform = backend.getPlatform();
 
-  auto renderer =
-      cx::GlRenderer(EGL_PLATFORM_GBM_KHR, nativeDisplay, nativeWindow);
+  auto renderer = cx::GlRenderer(platform, nativeDisplay, nativeWindow);
 
   while (true) {
 
