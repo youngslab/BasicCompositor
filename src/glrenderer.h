@@ -18,9 +18,16 @@ private:
 public:
   GlRenderer(EGLenum platform, EGLNativeDisplayType native_display,
 	     EGLNativeWindowType native_window) {
+    PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT =
+	reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
+	    eglGetProcAddress("eglGetPlatformDisplayEXT"));
+
+    _display =
+	eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_KHR, native_display, nullptr);
+
     // gbm_device = gbm_create_device(device);
     //_display = eglGetPlatformDisplay(platform, native_display, nullptr);
-    _display = eglGetDisplay(native_display);
+    //_display = eglGetDisplay(native_display);
     if (_display == EGL_NO_DISPLAY) {
       throw std::runtime_error("Failed to get platform display.");
     }
@@ -28,7 +35,7 @@ public:
     eglInitialize(_display, nullptr, nullptr);
 
     // create an OpenGL context
-    eglBindAPI(EGL_OPENGL_API);
+    eglBindAPI(EGL_OPENGL_ES_API);
 
     // config
     EGLint attributes[] = {EGL_RED_SIZE,  8, EGL_GREEN_SIZE, 8,

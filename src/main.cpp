@@ -1,4 +1,5 @@
 
+#include <stdexcept>
 #include <vector>
 #include <set>
 #include <map>
@@ -17,11 +18,11 @@
 #include <gbm.h>
 
 #include "glrenderer.h"
-#include "backend_drm.h"
+#include "backend_gbm.h"
 
 int main(int argc, char **argv) {
 
-  auto backend = cx::DrmBackend("/dev/dri/card0");
+  auto backend = cx::GbmBackend("/dev/dri/card0");
 
   auto nativeDisplay = backend.getNativeDisplayType();
   auto nativeWindow = backend.getNativeWindowType();

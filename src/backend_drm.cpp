@@ -8,6 +8,7 @@
 #include <fcntl.h>
 
 #include <map>
+#include <xf86drm.h>
 
 #include "drm.hpp"
 
@@ -78,17 +79,18 @@ auto chooseCrtc(int fd, drm::ConnectorPtr connector,
 /*----------------------------------------------------------------------*/
 
 DrmBackend::DrmBackend(const char *drmPath)
-    : _displays(0), _prevFramebuffer(0), _prevGbmBuffer(nullptr) {
-  _fd = open(drmPath, DRM_RDWR);
-  if (this->_fd < 0) {
+    : _displays(0), _framebuffer(0), _drmDevice(-1) {
+
+  _drmDevice = open(drmPath, DRM_RDWR | DRM_CLOEXEC);
+  if (_drmDevice < 0) {
     throw std::runtime_error(
 	fmt::format("Failed to open a DRM device.path={}, errono={} ", drmPath,
 		    strerror(errno)));
   }
 
-  auto resources = drm::getResources(_fd);
-  auto connectors = drm::getConnectors(_fd, resources);
-  auto crtcs = drm::getCrtcs(_fd, resources);
+  auto resources = drm::getResources(_drmDevice);
+  auto connectors = drm::getConnectors(_drmDevice, resources);
+  auto crtcs = drm::getCrtcs(_drmDevice, resources);
 
   // Create a crtc mapping table.
   auto table = std::map<uint32_t, bool>{};
@@ -100,71 +102,51 @@ DrmBackend::DrmBackend(const char *drmPath)
   for (auto &connector : connectors) {
     auto modes = drm::connectorGetModes(connector);
     auto mode = drm::chooseBestMode(modes);
-    auto crtc = chooseCrtc(_fd, connector, table);
+    auto crtc = chooseCrtc(_drmDevice, connector, table);
     if (!crtc)
       continue;
     // update table
     table[(*crtc)->crtc_id] = true;
 
-    /* TODO: create framebuffer */
-
     // Create & push a Display object
     // create gbm
-
     _displays.push_back(DrmDisplay{connector, mode, *crtc});
   }
 
-  _gbmDevice = gbm_create_device(_fd);
-  _gbmSurface = gbm_surface_create(
-      _gbmDevice, _displays[0].mode->hdisplay, _displays[0].mode->vdisplay,
-      GBM_BO_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+  if (_displays.size() == 0) {
+    throw std::runtime_error("Failed to find displays");
+  }
 }
 
 DrmBackend::~DrmBackend() {
-  if (_gbmDevice)
-    gbm_device_destroy(_gbmDevice);
-}
-
-auto DrmBackend::getNativeDisplayType() -> EGLNativeDisplayType {
-  return (EGLNativeDisplayType)this->_gbmDevice;
-}
-
-auto DrmBackend::getNativeWindowType() -> EGLNativeWindowType {
-  return (EGLNativeWindowType)this->_gbmSurface;
-}
-
-auto DrmBackend::commit() -> void {
-
-  // should be called after eglSwapbuffer
-  // 1. Get a buffer
-  struct gbm_bo *bo = gbm_surface_lock_front_buffer(_gbmSurface);
-  if (bo == nullptr) {
-    throw std::runtime_error("Failed to get gbm buffer object");
+  if (_framebuffer >= 0) {
+    drmModeRmFB(_drmDevice, _framebuffer);
   }
+}
 
-  uint32_t handle = gbm_bo_get_handle(bo).u32;
-  uint32_t pitch = gbm_bo_get_stride(bo);
-  uint32_t fb;
+auto DrmBackend::getDrmDevice() -> int32_t { return this->_drmDevice; }
+
+auto DrmBackend::getWidth() -> int32_t {
+  return this->_displays[0].mode->hdisplay;
+}
+auto DrmBackend::getHeight() -> int32_t {
+  return this->_displays[0].mode->vdisplay;
+}
+
+auto DrmBackend::getFormat() -> uint32_t { return DRM_FORMAT_XRGB8888; }
+
+auto DrmBackend::commit(uint32_t handle, uint32_t pitch) -> void {
+  auto oldFramebuffer = _framebuffer;
   auto modeInfo = _displays[0].mode;
+  drmModeAddFB(_drmDevice, modeInfo->hdisplay, modeInfo->vdisplay, 24, 32,
+	       pitch, handle, &_framebuffer);
 
-  // 2. Add a framebuffer
-  drmModeAddFB(_fd, modeInfo->hdisplay, modeInfo->vdisplay, 24, 32, pitch,
-	       handle, &fb);
-
-  // 3. Add Crtc
-  drmModeSetCrtc(_fd, _displays[0].crtc->crtc_id, fb, 0, 0,
+  drmModeSetCrtc(_drmDevice, _displays[0].crtc->crtc_id, _framebuffer, 0, 0,
 		 &_displays[0].connector->connector_id, 1, modeInfo);
 
-  if (_prevFramebuffer) {
-    drmModeRmFB(_fd, _prevFramebuffer);
+  if (oldFramebuffer) {
+    drmModeRmFB(_drmDevice, oldFramebuffer);
   }
-  // 4. Remove Previous Objects
-  if (_prevGbmBuffer) {
-    gbm_surface_release_buffer(_gbmSurface, _prevGbmBuffer);
-  }
-
-  _prevFramebuffer = fb;
-  _prevGbmBuffer = bo;
 }
 } // namespace cx
 

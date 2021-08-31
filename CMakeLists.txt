@@ -10,7 +10,7 @@ find_package(fmt REQUIRED)
 find_package(range-v3 REQUIRED)
 
 add_executable(${CMAKE_PROJECT_NAME} ./src/main.cpp ./src/backend_drm.cpp
-	./src/drm.cpp)
+	./src/drm.cpp ./src/backend_gbm.cpp)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17 )
 

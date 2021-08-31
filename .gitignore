@@ -1,6 +1,6 @@
-build
-.swp
-.swo
+build*
+*.swp
+*.swo
 .cache
 .clangd
 compile_commands.json
