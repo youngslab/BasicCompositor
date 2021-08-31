@@ -1,3 +1,6 @@
 [submodule "thirdpary/raii"]
 	path = thirdpary/raii
 	url = git@github.com:youngslab/raii.git
+[submodule "thirdpary/object-drm"]
+	path = thirdpary/object-drm
+	url = git@github.com:youngslab/object-drm.git
