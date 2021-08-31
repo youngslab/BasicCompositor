@@ -10,69 +10,7 @@
 #include <map>
 #include <xf86drm.h>
 
-#include "drm.hpp"
-
 namespace cx {
-
-auto isCrtcAssigned(uint32_t crtc_id,
-		    std::map<uint32_t, bool> const &assigned) {
-  return assigned.find(crtc_id) != assigned.end();
-}
-
-auto canUse(std::map<uint32_t, bool> const &crtcTable, uint32_t crtc_id)
-    -> bool {
-  if (crtcTable.find(crtc_id) == crtcTable.end())
-    return false;
-  return !crtcTable.find(crtc_id)->second;
-}
-
-auto chooseCrtc(int fd, drm::EncoderPtr encoder,
-		std::map<uint32_t, bool> const &crtcTable)
-    -> std::optional<drm::CrtcPtr> {
-
-  if (encoder->crtc_id && canUse(crtcTable, encoder->crtc_id)) {
-    return drm::CrtcPtr(fd, encoder->crtc_id);
-  }
-
-  for (auto it = crtcTable.begin(); it != crtcTable.end(); it++) {
-    auto idx = std::distance(crtcTable.begin(), it);
-    if (!(encoder->possible_crtcs & (1 << idx)))
-      continue;
-
-    if (it->second) // it used
-      continue;
-
-    return drm::CrtcPtr(fd, it->first);
-  }
-
-  return std::nullopt;
-}
-
-auto chooseCrtc(int fd, drm::ConnectorPtr connector,
-		std::map<uint32_t, bool> const &crtcTable)
-    -> std::optional<drm::CrtcPtr> {
-  if (!(connector->connection & DRM_MODE_CONNECTED))
-    return std::nullopt;
-
-  // Check connector has an encoder already.
-  uint32_t encoder_id = connector->encoder_id;
-  if (encoder_id) {
-    auto encoder = drm::EncoderPtr(fd, encoder_id);
-    auto crtc = chooseCrtc(fd, encoder, crtcTable);
-    if (crtc)
-      return crtc;
-  }
-
-  // Check all encoders
-  auto encoders = drm::getEncoders(fd, connector);
-  for (auto &encoder : encoders) {
-    auto crtc = chooseCrtc(fd, encoder, crtcTable);
-    if (crtc)
-      return crtc;
-  }
-
-  return std::nullopt;
-}
 
 /*----------------------------------------------------------------------*/
 
@@ -88,9 +26,9 @@ DrmBackend::DrmBackend(const char *drmPath)
 		    strerror(errno)));
   }
 
-  auto resources = drm::getResources(_drmDevice);
-  auto connectors = drm::getConnectors(_drmDevice, resources);
-  auto crtcs = drm::getCrtcs(_drmDevice, resources);
+  auto resources = od::getResources(_drmDevice);
+  auto connectors = od::getConnectors(_drmDevice, resources);
+  auto crtcs = od::getCrtcs(_drmDevice, resources);
 
   // Create a crtc mapping table.
   auto table = std::map<uint32_t, bool>{};
@@ -100,9 +38,9 @@ DrmBackend::DrmBackend(const char *drmPath)
 
   // build displays for each connector & crtc
   for (auto &connector : connectors) {
-    auto modes = drm::connectorGetModes(connector);
-    auto mode = drm::chooseBestMode(modes);
-    auto crtc = chooseCrtc(_drmDevice, connector, table);
+    auto modes = od::connectorGetModes(connector);
+    auto mode = od::chooseBestMode(modes);
+    auto crtc = od::chooseCrtc(_drmDevice, connector, table);
     if (!crtc)
       continue;
     // update table

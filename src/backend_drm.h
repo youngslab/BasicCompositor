@@ -4,14 +4,15 @@
 #include <EGL/eglplatform.h>
 #include <stdint.h>
 #include <vector>
-#include "drm.hpp"
+#include <odrm/odrm.hpp>
+
 
 namespace cx {
 
 struct DrmDisplay {
-  drm::ConnectorPtr connector;
-  drm::ModeInfoPtr mode;
-  drm::CrtcPtr crtc;
+  od::ConnectorPtr connector;
+  od::ModeInfoPtr mode;
+  od::CrtcPtr crtc;
 };
 
 class DrmBackend {
