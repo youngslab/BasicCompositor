@@ -4,3 +4,6 @@
 [submodule "thirdpary/object-drm"]
 	path = thirdpary/object-drm
 	url = git@github.com:youngslab/object-drm.git
+[submodule "thirdparty/object-gl"]
+	path = thirdparty/object-gl
+	url = https://github.com/youngslab/object-gl.git
