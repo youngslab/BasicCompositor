@@ -15,8 +15,8 @@ GbmBackend::GbmBackend(char const *drmPath) : _drm(drmPath) {
 	fmt::format("Failed to create gbm device. fd={}", drmDevice));
   }
 
-  _gbmSurface = gbm_surface_create(_gbmDevice, _drm.getWidth(), _drm.getHeight(),
-				   _drm.getFormat(),
+  _gbmSurface = gbm_surface_create(_gbmDevice, _drm.getWidth(),
+				   _drm.getHeight(), _drm.getFormat(),
 				   GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
   if (!_gbmSurface) {
     throw std::runtime_error(fmt::format(
@@ -25,12 +25,12 @@ GbmBackend::GbmBackend(char const *drmPath) : _drm(drmPath) {
   }
 }
 
-auto GbmBackend::getNativeDisplayType() -> EGLNativeDisplayType {
-  return (EGLNativeDisplayType)this->_gbmDevice;
+auto GbmBackend::getNativeDisplayType() -> void * {
+  return (void *)this->_gbmDevice;
 }
 
-auto GbmBackend::getNativeWindowType() -> EGLNativeWindowType {
-  return (EGLNativeWindowType)this->_gbmSurface;
+auto GbmBackend::getNativeWindowType() -> void * {
+  return (void *)this->_gbmSurface;
 }
 
 auto GbmBackend::commit() -> void {
@@ -53,7 +53,8 @@ auto GbmBackend::commit() -> void {
   }
 }
 
-auto GbmBackend::getPlatform() -> EGLenum {
-	return EGL_PLATFORM_GBM_KHR;
-}
+auto GbmBackend::getPlatform() -> EGLenum { return EGL_PLATFORM_GBM_KHR; }
+
+auto GbmBackend::getWidth() -> uint32_t { return this->_drm.getWidth(); }
+auto GbmBackend::getHeight() -> uint32_t { return this->_drm.getHeight(); }
 } // namespace cx

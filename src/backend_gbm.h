@@ -5,14 +5,9 @@
 #include <gbm.h>
 #include <EGL/egl.h>
 #include "backend_drm.h"
+#include "ieglpaltform.hpp"
 
 namespace cx {
-
-struct IEglPlatform {
-  virtual auto getNativeDisplayType() -> EGLNativeDisplayType = 0;
-  virtual auto getNativeWindowType() -> EGLNativeWindowType = 0;
-  virtual auto getPlatform() -> EGLenum = 0;
-};
 
 class GbmBackend : public IEglPlatform {
 
@@ -28,9 +23,11 @@ public:
   // swap
   auto commit() -> void;
 
-  auto getNativeDisplayType() -> EGLNativeDisplayType override;
-  auto getNativeWindowType() -> EGLNativeWindowType override;
+  auto getNativeDisplayType() -> void * override;
+  auto getNativeWindowType() -> void * override;
   auto getPlatform() -> EGLenum override;
+  auto getWidth() -> uint32_t override;
+  auto getHeight() -> uint32_t override;
 };
 
 } // namespace cx

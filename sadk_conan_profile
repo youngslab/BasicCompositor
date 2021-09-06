@@ -1,0 +1,11 @@
+# profile for armv8
+[settings]
+os=Linux
+arch=armv8
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=10
+
+
+[options]
+fmt:header_only=True

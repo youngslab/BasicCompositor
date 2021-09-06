@@ -17,12 +17,14 @@
 
 #include <gbm.h>
 
-#include "glrenderer.h"
+#include "glrenderer.hpp"
 #include "backend_gbm.h"
+#include "backend_wayland.hpp"
 
 int main(int argc, char **argv) {
 
-  auto backend = cx::GbmBackend("/dev/dri/card0");
+  // auto backend = cx::GbmBackend("/dev/dri/card0");
+  auto backend = cx::WaylandBackend(nullptr, 500, 500);
   auto nativeDisplay = backend.getNativeDisplayType();
   auto nativeWindow = backend.getNativeWindowType();
   auto platform = backend.getPlatform();
@@ -31,10 +33,10 @@ int main(int argc, char **argv) {
 
   while (true) {
 
-    renderer.clear();
+    renderer.clear(backend.getWidth(), backend.getHeight());
 
     // get buffers from object and render it to the framebuffer
-    renderer.draw();
+    renderer.render();
 
     // redering all to the frambuffer
     renderer.swapBuffer();
