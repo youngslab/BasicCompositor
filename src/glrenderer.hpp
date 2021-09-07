@@ -34,24 +34,25 @@ public:
   auto bind() const -> void;
 };
 
-class Program {
+class Material {
 private:
   gl::Program _program;
+  std::vector<gl::Texture> _textures;
 
 public:
-  Program(std::string const &v, std::string const &f);
-  Program();
+  Material();
+  Material(gl::Program p, std::vector<gl::Texture> ts);
 
   auto bind() const -> void;
 };
 
 class Entity {
 private:
-  Program _program;
+  Material _material;
   Mesh _mesh;
 
 public:
-  Entity(Mesh mesh, Program program);
+  Entity(Mesh mesh, Material material);
 
   auto draw() const -> void;
   auto bind() const -> void;

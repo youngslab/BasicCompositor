@@ -3,6 +3,7 @@
 # glfw/3.3.2@bincrafters/stable
 fmt/8.0.0
 range-v3/0.11.0
+stb/cci.20210713
 # Assimp/4.1.0@jacmoe/stable
 
 [generators] 

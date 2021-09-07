@@ -3,6 +3,7 @@
 #include "object/gl.hpp"
 #include <GLES3/gl3.h>
 #include <fmt/format.h>
+#include <numeric>
 
 namespace cx {
 
@@ -102,23 +103,24 @@ auto GlRenderer::swapBuffer() -> void {
   eglSwapBuffers(_display, _egl_surface);
 }
 
-Entity::Entity(Mesh mesh, Program program) : _mesh(mesh), _program(program) {}
+Entity::Entity(Mesh mesh, Material material)
+    : _mesh(mesh), _material(material) {}
 
 auto Entity::bind() const -> void {
-  _program.bind(); // Load the vertex data
+  _material.bind(); // Load the vertex data
   _mesh.bind();
 }
 
 auto Entity::draw() const -> void { _mesh.draw(); }
 
 Mesh::Mesh()
-    : _vbo(gl::GenBuffer()), _ebo(gl::GenBuffer()), _vao(gl::GenVertexArray()) {
+    : _vbo(gl::genBuffer()), _ebo(gl::genBuffer()), _vao(gl::genVertexArray()) {
 }
 
 Mesh::Mesh(std::vector<float> const &vertices,
 	   std::vector<uint32_t> const &indices,
 	   std::vector<Attribute> const &attrs)
-    : _vbo(gl::GenBuffer()), _ebo(gl::GenBuffer()), _vao(gl::GenVertexArray()) {
+    : _vbo(gl::genBuffer()), _ebo(gl::genBuffer()), _vao(gl::genVertexArray()) {
 
   // vao
   glBindVertexArray(_vao);
@@ -137,9 +139,13 @@ Mesh::Mesh(std::vector<float> const &vertices,
 
   // records attributes
   auto offset = 0ul;
+  auto stride = std::accumulate(
+      attrs.begin(), attrs.end(), (uint32_t)0,
+      [](uint32_t s, Attribute const &attr) { return s + attr.size(); });
+
   for (int i = 0; i < attrs.size(); i++) {
     glVertexAttribPointer(i, attrs[i].count, attrs[i].type, attrs[i].normalized,
-			  attrs[i].size(), (void *)offset);
+			  stride, (void *)offset);
     glEnableVertexAttribArray(i);
     offset += attrs[i].size();
   }
@@ -157,19 +163,17 @@ auto Mesh::bind() const -> void {
   glBindVertexArray(_vao); // seeing as we only have a single VAO there's no
 }
 
-Program::Program() : _program(0) {}
+Material::Material() : _program(0) {}
 
-Program::Program(std::string const &v, std::string const &f)
-    : _program(gl::createProgram()) {
-  auto vinterm = v.c_str();
-  auto vert = gl::createShader_(GL_VERTEX_SHADER, 1, &vinterm, nullptr);
+Material::Material(gl::Program p, std::vector<gl::Texture> ts)
+    : _program(p), _textures(ts) {}
 
-  auto finterm = f.c_str();
-  auto frag = gl::createShader_(GL_FRAGMENT_SHADER, 1, &finterm, nullptr);
-
-  _program = gl::createProgram_(vert, frag);
+auto Material::bind() const -> void {
+  glUseProgram(_program);
+  for (int i = 0; i < _textures.size(); i++) {
+    glActiveTexture(GL_TEXTURE0 + i);
+    glBindTexture(GL_TEXTURE_2D, _textures[i]);
+  }
 }
-
-auto Program::bind() const -> void { glUseProgram(_program); }
 
 } // namespace cx
