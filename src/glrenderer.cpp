@@ -1,8 +1,37 @@
 
 #include "glrenderer.hpp"
+#include "object/gl.hpp"
+#include <GLES3/gl3.h>
 #include <fmt/format.h>
 
 namespace cx {
+
+auto convertTypeToSize(GLenum type) -> uint32_t {
+  switch (type) {
+  case GL_FLOAT:
+    return sizeof(float);
+  case GL_UNSIGNED_INT:
+    return sizeof(uint32_t);
+  case GL_INT:
+    return sizeof(int32_t);
+  case GL_SHORT:
+    return sizeof(int16_t);
+  case GL_UNSIGNED_SHORT:
+    return sizeof(uint16_t);
+  case GL_BYTE:
+    return sizeof(char);
+    ;
+  case GL_UNSIGNED_BYTE:
+    return sizeof(unsigned char);
+  default:
+    throw std::runtime_error(
+	fmt::format("Failed to parse the type of {}", type));
+  }
+}
+
+auto Attribute::size() const -> uint32_t {
+  return convertTypeToSize(this->type) * this->count;
+}
 
 GlRenderer::GlRenderer(EGLenum platform, void *native_display,
 		       void *native_window)
@@ -55,79 +84,6 @@ GlRenderer::GlRenderer(EGLenum platform, void *native_display,
     throw std::runtime_error("Failed to create a EGL surface");
   }
   eglMakeCurrent(_display, _egl_surface, _egl_surface, _context);
-
-  init();
-}
-
-const char *vShaderStr = "#version 300 es\n"
-			 "layout(location = 0) in vec3 aPos;\n"
-			 "void main()\n"
-			 "{\n"
-			 "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-			 "}\0";
-
-static const char *fShaderStr = "#version 300 es\n"
-				"precision mediump float;\n"
-				"out vec4 FragColor;\n"
-				"void main()\n"
-				"{\n"
-				"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-				"}\n\0";
-
-auto GlRenderer::init() -> void {
-
-  auto fragShader =
-      gl::createShader_(GL_FRAGMENT_SHADER, 1, &fShaderStr, nullptr);
-
-  auto vertexShader =
-      gl::createShader_(GL_VERTEX_SHADER, 1, &vShaderStr, nullptr);
-
-  _program = gl::createProgram_(vertexShader, fragShader);
-
-  float vertices[] = {
-      0.5f,  0.5f,  0.0f, // top right
-      0.5f,  -0.5f, 0.0f, // bottom right
-      -0.5f, -0.5f, 0.0f, // bottom left
-      -0.5f, 0.5f,  0.0f  // top left
-  };
-  unsigned int indices[] = {
-      // note that we start from 0!
-      0, 1, 3, // first Triangle
-      1, 2, 3  // second Triangle
-  };
-
-  glGenVertexArrays(1, &_VAO);
-  glGenBuffers(1, &_VBO);
-  glGenBuffers(1, &_EBO);
-  // bind the Vertex Array Object first, then bind and set vertex buffer(s), and
-  // then configure vertex attributes(s).
-  glBindVertexArray(_VAO);
-
-  glBindBuffer(GL_ARRAY_BUFFER, _VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-	       GL_STATIC_DRAW);
-
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-
-  // note that this is allowed, the call to glVertexAttribPointer registered VBO
-  // as the vertex attribute's bound vertex buffer object so afterwards we can
-  // safely unbind
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  // remember: do NOT unbind the EBO while a VAO is active as the bound element
-  // buffer object IS stored in the VAO; keep the EBO bound.
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  // You can unbind the VAO afterwards so other VAO calls won't accidentally
-  // modify this VAO, but this rarely happens. Modifying other
-  // VAOs requires a call to glBindVertexArray anyways so we generally don't
-  // unbind VAOs (nor VBOs) when it's not directly necessary.
-  glBindVertexArray(0);
-
 }
 
 auto GlRenderer::clear(int width, int height) -> void {
@@ -137,18 +93,83 @@ auto GlRenderer::clear(int width, int height) -> void {
   glViewport(0, 0, width, height);
 }
 
-auto GlRenderer::render() -> void {
-  // Use the program object
-  glUseProgram(_program); // Load the vertex data
-
-  glBindVertexArray(_VAO); // seeing as we only have a single VAO there's no
-			   // need to bind it every time, but we'll do so to
-			   // keep things a bit more organized
-  // glDrawArrays(GL_TRIANGLES, 0, 6);
-  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+auto GlRenderer::render(Entity const &e) -> void {
+  e.bind();
+  e.draw();
 }
 
 auto GlRenderer::swapBuffer() -> void {
   eglSwapBuffers(_display, _egl_surface);
 }
+
+Entity::Entity(Mesh mesh, Program program) : _mesh(mesh), _program(program) {}
+
+auto Entity::bind() const -> void {
+  _program.bind(); // Load the vertex data
+  _mesh.bind();
+}
+
+auto Entity::draw() const -> void { _mesh.draw(); }
+
+Mesh::Mesh()
+    : _vbo(gl::GenBuffer()), _ebo(gl::GenBuffer()), _vao(gl::GenVertexArray()) {
+}
+
+Mesh::Mesh(std::vector<float> const &vertices,
+	   std::vector<uint32_t> const &indices,
+	   std::vector<Attribute> const &attrs)
+    : _vbo(gl::GenBuffer()), _ebo(gl::GenBuffer()), _vao(gl::GenVertexArray()) {
+
+  // vao
+  glBindVertexArray(_vao);
+
+  // vbo
+  glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(),
+	       vertices.data(), GL_STATIC_DRAW);
+
+  // ebo
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * indices.size(),
+	       indices.data(), GL_STATIC_DRAW);
+
+  _count = indices.size();
+
+  // records attributes
+  auto offset = 0ul;
+  for (int i = 0; i < attrs.size(); i++) {
+    glVertexAttribPointer(i, attrs[i].count, attrs[i].type, attrs[i].normalized,
+			  attrs[i].size(), (void *)offset);
+    glEnableVertexAttribArray(i);
+    offset += attrs[i].size();
+  }
+
+  // unbind
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
+}
+
+auto Mesh::draw() const -> void {
+  glDrawElements(GL_TRIANGLES, _count, GL_UNSIGNED_INT, 0);
+}
+
+auto Mesh::bind() const -> void {
+  glBindVertexArray(_vao); // seeing as we only have a single VAO there's no
+}
+
+Program::Program() : _program(0) {}
+
+Program::Program(std::string const &v, std::string const &f)
+    : _program(gl::createProgram()) {
+  auto vinterm = v.c_str();
+  auto vert = gl::createShader_(GL_VERTEX_SHADER, 1, &vinterm, nullptr);
+
+  auto finterm = f.c_str();
+  auto frag = gl::createShader_(GL_FRAGMENT_SHADER, 1, &finterm, nullptr);
+
+  _program = gl::createProgram_(vert, frag);
+}
+
+auto Program::bind() const -> void { glUseProgram(_program); }
+
 } // namespace cx

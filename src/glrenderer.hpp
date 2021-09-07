@@ -6,6 +6,57 @@
 
 namespace cx {
 
+struct Attribute {
+  GLenum type;
+  GLuint count;
+  GLboolean normalized;
+
+  auto size() const -> uint32_t;
+};
+
+class Mesh {
+
+private:
+  gl::Buffer _vbo;
+  gl::Buffer _ebo;
+  gl::VertexArray _vao;
+
+  uint32_t _count;
+
+public:
+  Mesh(std::vector<float> const &vertices, std::vector<uint32_t> const &indices,
+       std::function<void()> descriptor);
+  Mesh(std::vector<float> const &vertices, std::vector<uint32_t> const &indices,
+       std::vector<Attribute> const &attr);
+  Mesh();
+
+  auto draw() const -> void;
+  auto bind() const -> void;
+};
+
+class Program {
+private:
+  gl::Program _program;
+
+public:
+  Program(std::string const &v, std::string const &f);
+  Program();
+
+  auto bind() const -> void;
+};
+
+class Entity {
+private:
+  Program _program;
+  Mesh _mesh;
+
+public:
+  Entity(Mesh mesh, Program program);
+
+  auto draw() const -> void;
+  auto bind() const -> void;
+};
+
 class GlRenderer {
 private:
   egl::Display _display;
@@ -21,11 +72,9 @@ public:
 
   ~GlRenderer() {}
 
-  auto init() -> void;
+  auto clear(int width, int height) -> void;
 
-  auto clear(int width, int height ) -> void;
-
-  auto render() -> void;
+  auto render(Entity const &e) -> void;
 
   auto swapBuffer() -> void;
 };

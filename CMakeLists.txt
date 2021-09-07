@@ -25,6 +25,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${DRM_INCLUDE_DIRS}
 	PUBLIC ./include)
 
 
+# UBM setup
 pkg_check_modules(UBM libubm)
 if(${UBM_FOUND})
 	#target_sources(${PROJECT_NAME})
@@ -33,8 +34,8 @@ if(${UBM_FOUND})
 endif()
 
 
-find_package(ECM 5.85 NO_MODULE)
-
+# Waland steup
+find_package(ECM 5.68 NO_MODULE)
 if(${ECM_FOUND})
 list(APPEND CMAKE_MODULE_PATH "${ECM_MODULE_PATH}")
 
