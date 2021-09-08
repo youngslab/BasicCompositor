@@ -20,6 +20,7 @@
 #include "glrenderer.hpp"
 #include "backend_gbm.h"
 #include "backend_wayland.hpp"
+#include "renderer_offscreen.h"
 
 #ifdef BACKEND_X11
 #include "backend_x11.hpp"
@@ -41,14 +42,18 @@ int main(int argc, char **argv) {
   auto platform = backend.getPlatform();
 
   auto renderer = cx::GlRenderer(platform, nativeDisplay, nativeWindow);
+  auto offRenderer = cx::OffscreenRenderer(renderer, 500, 500);
 
   auto entity = createEntity();
 
   while (true) {
     renderer.clear(backend.getWidth(), backend.getHeight());
 
-    // get buffers from object and render it to the framebuffer
-    renderer.render(entity);
+    // offscreen rendering
+    offRenderer.clear(500, 500);
+    offRenderer.render(entity);
+    offRenderer.swapBuffer();
+    offRenderer.blit(0, 0, 250, 250);
 
     // redering all to the frambuffer
     renderer.swapBuffer();

@@ -23,11 +23,11 @@ public:
   // swap
   auto commit() -> void;
 
-  auto getNativeDisplayType() -> void * override;
-  auto getNativeWindowType() -> void * override;
-  auto getPlatform() -> EGLenum override;
-  auto getWidth() -> uint32_t override;
-  auto getHeight() -> uint32_t override;
+  virtual auto getNativeDisplayType() -> void * override;
+  virtual auto getNativeWindowType() -> void * override;
+  virtual auto getPlatform() -> EGLenum override;
+  virtual auto getWidth() -> uint32_t override;
+  virtual auto getHeight() -> uint32_t override;
 };
 
 } // namespace cx

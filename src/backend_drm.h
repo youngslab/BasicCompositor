@@ -6,7 +6,6 @@
 #include <vector>
 #include <odrm/odrm.hpp>
 
-
 namespace cx {
 
 struct DrmDisplay {

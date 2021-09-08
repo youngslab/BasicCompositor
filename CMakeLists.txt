@@ -13,7 +13,7 @@ add_subdirectory(./thirdpary)
 add_subdirectory(./thirdparty)
 
 add_executable(${CMAKE_PROJECT_NAME} ./src/glrenderer.cpp ./src/main.cpp ./src/backend_drm.cpp
-	./src/backend_gbm.cpp )
+	./src/backend_gbm.cpp ./src/renderer_offscreen.cpp )
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17 )
 
