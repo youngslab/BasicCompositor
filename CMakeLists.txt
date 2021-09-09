@@ -33,6 +33,15 @@ if(${UBM_FOUND})
 	target_include_directories(${PROJECT_NAME} PUBLIC ${UBM_INCLUDE_DIRS})
 endif()
 
+# x11
+find_package(X11)
+if(${X11_FOUND})
+target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES} )
+target_include_directories(${PROJECT_NAME} PRIVATE ${X11_INCLUDE_DIR})
+target_compile_definitions(${PROJECT_NAME} PRIVATE BACKEND_X11=1)
+target_sources(${PROJECT_NAME} PRIVATE ./src/backend_x11.cpp)
+
+endif()
 
 # Waland steup
 find_package(ECM 5.68 NO_MODULE)

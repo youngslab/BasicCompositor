@@ -21,12 +21,20 @@
 #include "backend_gbm.h"
 #include "backend_wayland.hpp"
 
+#ifdef BACKEND_X11
+#include "backend_x11.hpp"
+#endif
+
 auto createEntity() -> cx::Entity;
 
 int main(int argc, char **argv) {
 
   // auto backend = cx::GbmBackend("/dev/dri/card0");
-  auto backend = cx::WaylandBackend(nullptr, 500, 500);
+  // auto backend = cx::WaylandBackend(nullptr, 500, 500);
+	
+#ifdef BACKEND_X11
+  auto backend = cx::X11Backend(500, 500);
+#endif
 
   auto nativeDisplay = backend.getNativeDisplayType();
   auto nativeWindow = backend.getNativeWindowType();
