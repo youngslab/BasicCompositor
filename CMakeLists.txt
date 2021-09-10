@@ -13,7 +13,7 @@ add_subdirectory(./thirdpary)
 add_subdirectory(./thirdparty)
 
 add_executable(${CMAKE_PROJECT_NAME} ./src/glrenderer.cpp ./src/main.cpp ./src/backend_drm.cpp
-	./src/backend_gbm.cpp ./src/renderer_offscreen.cpp )
+	./src/backend_gbm.cpp )
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17 )
 
@@ -48,8 +48,8 @@ find_package(ECM 5.68 NO_MODULE)
 if(${ECM_FOUND})
 list(APPEND CMAKE_MODULE_PATH "${ECM_MODULE_PATH}")
 
-find_package(Wayland )
-find_package(WaylandScanner )
+find_package(Wayland 1.18)
+find_package(WaylandScanner 1.18)
 find_package(WaylandProtocols 1.20)
 
 if(${Wayland_FOUND})

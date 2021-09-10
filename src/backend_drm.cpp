@@ -71,7 +71,7 @@ auto DrmBackend::getHeight() -> int32_t {
   return this->_displays[0].mode->vdisplay;
 }
 
-auto DrmBackend::getFormat() -> uint32_t { return DRM_FORMAT_XRGB8888; }
+auto DrmBackend::getFormat() -> uint32_t { return DRM_FORMAT_ARGB8888; }
 
 auto DrmBackend::commit(uint32_t handle, uint32_t pitch) -> void {
   auto oldFramebuffer = _framebuffer;

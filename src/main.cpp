@@ -1,4 +1,3 @@
-
 #include <stdexcept>
 #include <vector>
 #include <set>
@@ -20,7 +19,6 @@
 #include "glrenderer.hpp"
 #include "backend_gbm.h"
 #include "backend_wayland.hpp"
-#include "renderer_offscreen.h"
 
 #ifdef BACKEND_X11
 #include "backend_x11.hpp"
@@ -32,34 +30,65 @@ int main(int argc, char **argv) {
 
   // auto backend = cx::GbmBackend("/dev/dri/card0");
   // auto backend = cx::WaylandBackend(nullptr, 500, 500);
-	
-#ifdef BACKEND_X11
-  auto backend = cx::X11Backend(500, 500);
-#endif
 
+#ifdef BACKEND_X11
+  auto backend = cx::X11Backend(600, 600);
+  auto gbm = cx::GbmBackend("/dev/dri/card0");
+#else
+  auto backend = cx::GbmBackend("/dev/dri/card0");
+  auto &gbm = backend;
+#endif
   auto nativeDisplay = backend.getNativeDisplayType();
   auto nativeWindow = backend.getNativeWindowType();
   auto platform = backend.getPlatform();
 
   auto renderer = cx::GlRenderer(platform, nativeDisplay, nativeWindow);
-  auto offRenderer = cx::OffscreenRenderer(renderer, 500, 500);
-
   auto entity = createEntity();
 
+  // create dmabuf
+  // auto buff = gbm.createBuffer(500, 500, GBM_FORMAT_XRGB8888);
+  auto buff = gbm.createBuffer(500, 500, GBM_FORMAT_ARGB8888);
+  auto fb = renderer.createFramebuffer(buff);
+
   while (true) {
-    renderer.clear(backend.getWidth(), backend.getHeight());
+    // renderpass 1
+    renderer.renderTo(fb);
+    renderer.clear(500, 500, 1.0f, 1.0f, 0.0f);
+    renderer.render(entity);
+    renderer.finish();
 
-    // offscreen rendering
-    offRenderer.clear(500, 500);
-    offRenderer.render(entity);
-    offRenderer.swapBuffer();
-    offRenderer.blit(0, 0, 250, 250);
-
-    // redering all to the frambuffer
+    // renderpass 2
+    renderer.renderToDefault();
+    renderer.clear(backend.getWidth(), backend.getHeight(), 1.0f, 0.0f, 0.0f);
+    renderer.blit(fb, 0, 0, 500, 500, 0, 0, 500, 500);
+    renderer.render(entity);
     renderer.swapBuffer();
-
-    // buffer object
     backend.commit();
+
+    // renderer.renderTo(fb);
+    // renderer.clear(500, 500, 1.0f, 1.0f, 0.0f);
+    // renderer.render(entity);
+    // renderer.finish();
+
+    // renderer.renderToDefault();
+    // renderer.clear(backend.getWidth(), backend.getHeight(), 1.0f, 0.0f,
+    // 0.0f); renderer.blit(fb, 0, 0, 500, 500, 0, 0, backend.getWidth(),
+    // backend.getHeight());
+    // renderer.render(entity);
+    // renderer.swapBuffer();
+    // backend.commit();
+
+    // renderer.render(entity);
+    // renderer.finish();
+
+    // renderer.renderTo(0);
+    // renderer.clear(backend.getWidth(), backend.getHeight());
+    // renderer.blit(0, 0, 500, 500);
+    //// redering all to the frambuffer
+    // renderer.swapBuffer();
+
+    //// buffer object
+    // backend.commit();
   }
 
   return 0;
@@ -125,3 +154,4 @@ auto createEntity() -> cx::Entity {
 
   return cx::Entity(mesh, material);
 }
+

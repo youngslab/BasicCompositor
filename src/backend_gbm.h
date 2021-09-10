@@ -22,6 +22,7 @@ public:
 
   // swap
   auto commit() -> void;
+  auto createBuffer(uint32_t w, uint32_t h, uint32_t f) -> Buffer;
 
   virtual auto getNativeDisplayType() -> void * override;
   virtual auto getNativeWindowType() -> void * override;

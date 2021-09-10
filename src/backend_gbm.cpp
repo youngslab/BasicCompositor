@@ -57,4 +57,25 @@ auto GbmBackend::getPlatform() -> EGLenum { return EGL_PLATFORM_GBM_KHR; }
 
 auto GbmBackend::getWidth() -> uint32_t { return this->_drm.getWidth(); }
 auto GbmBackend::getHeight() -> uint32_t { return this->_drm.getHeight(); }
+
+auto GbmBackend::createBuffer(uint32_t w, uint32_t h, uint32_t f) -> Buffer {
+  int oldErrno = errno;
+  // TODO: How to remove buffer?
+  auto bo = gbm_bo_create(_gbmDevice, w, h, f, GBM_BO_USE_RENDERING);
+  if (!bo) {
+    throw std::runtime_error(
+	fmt::format("Failed to create gbm buffer object. w={}, h={}, f={}, "
+		    "errno={}, oldErrno={}",
+		    w, h, f, strerror(errno), strerror(oldErrno)));
+  }
+
+  auto buffer = Buffer();
+  buffer.width = w;
+  buffer.height = h;
+  buffer.format = f;
+  buffer.planes.push_back(
+      Plane{gbm_bo_get_fd(bo), static_cast<GLint>(gbm_bo_get_stride(bo)), 0});
+  return buffer;
+}
+
 } // namespace cx

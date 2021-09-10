@@ -3,6 +3,7 @@
 
 #include <object/egl.hpp>
 #include <object/gl.hpp>
+#include "ieglpaltform.hpp"
 
 namespace cx {
 
@@ -64,10 +65,6 @@ private:
   egl::Context _context;
   egl::Surface _egl_surface;
 
-  gl::Program _program;
-
-  GLuint _VAO, _VBO, _EBO;
-
 public:
   GlRenderer(EGLenum platform, void *native_display, void *native_window);
 
@@ -75,9 +72,22 @@ public:
 
   auto clear(int width, int height) -> void;
 
+  auto clear(int w, int h, float r, float g, float b) -> void;
+
   auto render(Entity const &e) -> void;
 
+  auto renderTo(gl::Framebuffer const &fb) -> void;
+  auto renderToDefault() -> void;
+
+  auto blit(gl::Framebuffer const &src, uint32_t srcX, uint32_t srcY,
+	    uint32_t srcWidth, uint32_t srcHeight, uint32_t destX,
+	    uint32_t destY, uint32_t destWidth, uint32_t destHeight) -> void;
+
+  auto finish() -> void;
+
   auto swapBuffer() -> void;
+
+  auto createFramebuffer(Buffer const &buffer) -> gl::Framebuffer;
 };
 
 } // namespace cx

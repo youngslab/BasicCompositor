@@ -2,6 +2,9 @@
 #include "glrenderer.hpp"
 #include "object/gl.hpp"
 #include <GLES3/gl3.h>
+#include <GLES2/gl2ext.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <fmt/format.h>
 #include <numeric>
 
@@ -35,8 +38,7 @@ auto Attribute::size() const -> uint32_t {
 }
 
 GlRenderer::GlRenderer(EGLenum platform, void *native_display,
-		       void *native_window)
-    : _program(0) {
+		       void *native_window) {
 
   _display = egl::getPlatformDisplay(platform, native_display, nullptr);
   if (_display == EGL_NO_DISPLAY) {
@@ -75,14 +77,16 @@ GlRenderer::GlRenderer(EGLenum platform, void *native_display,
   _context =
       egl::createContext(_display, config, EGL_NO_CONTEXT, context_attribs);
   if (_context == EGL_NO_CONTEXT) {
-    throw std::runtime_error("Failed to create a EGL context");
+    throw std::runtime_error(fmt::format(
+	"ERROR: Failed to create a EGL context. {:#x}", eglGetError()));
   }
 
   // create egl sruface
-  _egl_surface = egl::createWindowSurface_(
-      _display, config, (EGLNativeWindowType)native_window, nullptr);
+  _egl_surface = egl::createPlatformWindowSurfaceExt_(_display, config,
+						      native_window, nullptr);
   if (_egl_surface == EGL_NO_SURFACE) {
-    throw std::runtime_error("Failed to create a EGL surface");
+    throw std::runtime_error(fmt::format(
+	"ERROR: Failed to create a EGL surface. {:#x}", eglGetError()));
   }
   eglMakeCurrent(_display, _egl_surface, _egl_surface, _context);
 }
@@ -94,6 +98,12 @@ auto GlRenderer::clear(int width, int height) -> void {
   glViewport(0, 0, width, height);
 }
 
+auto GlRenderer::clear(int w, int h, float r, float g, float b) -> void {
+  glClearColor(r, g, b, 0.5);
+  glClear(GL_COLOR_BUFFER_BIT);
+  glViewport(0, 0, w, h);
+}
+
 auto GlRenderer::render(Entity const &e) -> void {
   e.bind();
   e.draw();
@@ -101,6 +111,82 @@ auto GlRenderer::render(Entity const &e) -> void {
 
 auto GlRenderer::swapBuffer() -> void {
   eglSwapBuffers(_display, _egl_surface);
+}
+
+auto GlRenderer::finish() -> void { glFinish(); };
+
+auto GlRenderer::createFramebuffer(Buffer const &b) -> gl::Framebuffer {
+  GLint attribs[] = {EGL_WIDTH,
+		     b.width,
+		     EGL_HEIGHT,
+		     b.height,
+		     EGL_LINUX_DRM_FOURCC_EXT,
+		     b.format,
+		     EGL_DMA_BUF_PLANE0_FD_EXT,
+		     b.planes[0].fd,
+		     EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+		     b.planes[0].offset,
+		     EGL_DMA_BUF_PLANE0_PITCH_EXT,
+		     b.planes[0].stride,
+		     EGL_NONE};
+
+  auto eglImage = egl::createImageKHR(_display, EGL_NO_CONTEXT,
+				      EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+
+  auto texture = gl::genTexture();
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+  static auto glEGLImageTargetTexture2DOES =
+      (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress(
+	  "glEGLImageTargetTexture2DOES");
+  if (!glEGLImageTargetTexture2DOES) {
+    throw std::runtime_error(
+	"EGL doesn't support glEGLImageTargetTexture2DOES");
+  }
+
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, eglImage);
+
+  auto framebuffer = gl::genFramebuffer();
+  glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+			 texture, 0);
+
+  auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  if (status != GL_FRAMEBUFFER_COMPLETE)
+    throw std::runtime_error(fmt::format(
+	"Failed to create a framebuffer. status={:#x}, glError={:#x}", status,
+	glGetError()));
+
+  // XXX: depends on a texture
+  framebuffer.dependOn(texture);
+  framebuffer.dependOn(eglImage);
+
+  return framebuffer;
+}
+
+auto GlRenderer::renderToDefault() -> void {
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+auto GlRenderer::renderTo(gl::Framebuffer const &fb) -> void {
+  glBindFramebuffer(GL_FRAMEBUFFER, fb);
+}
+
+auto GlRenderer::blit(gl::Framebuffer const &src, uint32_t srcX, uint32_t srcY,
+		      uint32_t srcWidth, uint32_t srcHeight, uint32_t destX,
+		      uint32_t destY, uint32_t destWidth, uint32_t destHeight)
+    -> void {
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, src);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+
+  glBlitFramebuffer(srcX, srcY, srcWidth, srcHeight, destX, destY, destWidth,
+		    destHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 Entity::Entity(Mesh mesh, Material material)
