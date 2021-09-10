@@ -115,6 +115,45 @@ auto GlRenderer::swapBuffer() -> void {
 
 auto GlRenderer::finish() -> void { glFinish(); };
 
+auto GlRenderer::createTexture(Buffer const &b) -> gl::Texture {
+  GLint attribs[] = {EGL_WIDTH,
+		     b.width,
+		     EGL_HEIGHT,
+		     b.height,
+		     EGL_LINUX_DRM_FOURCC_EXT,
+		     b.format,
+		     EGL_DMA_BUF_PLANE0_FD_EXT,
+		     b.planes[0].fd,
+		     EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+		     b.planes[0].offset,
+		     EGL_DMA_BUF_PLANE0_PITCH_EXT,
+		     b.planes[0].stride,
+		     EGL_NONE};
+
+  auto eglImage = egl::createImageKHR(_display, EGL_NO_CONTEXT,
+				      EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+
+  auto texture = gl::genTexture();
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+  static auto glEGLImageTargetTexture2DOES =
+      (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress(
+	  "glEGLImageTargetTexture2DOES");
+  if (!glEGLImageTargetTexture2DOES) {
+    throw std::runtime_error(
+	"EGL doesn't support glEGLImageTargetTexture2DOES");
+  }
+
+  glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, eglImage);
+
+  texture.dependOn(eglImage);
+  return texture;
+}
+
 auto GlRenderer::createFramebuffer(Buffer const &b) -> gl::Framebuffer {
   GLint attribs[] = {EGL_WIDTH,
 		     b.width,
@@ -189,12 +228,18 @@ auto GlRenderer::blit(gl::Framebuffer const &src, uint32_t srcX, uint32_t srcY,
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-Entity::Entity(Mesh mesh, Material material)
-    : _mesh(mesh), _material(material) {}
+Entity::Entity(Mesh mesh, Material material,
+	       std::vector<gl::Texture> const &textures)
+    : _mesh(mesh), _material(material), _textures(textures) {}
 
 auto Entity::bind() const -> void {
   _material.bind(); // Load the vertex data
   _mesh.bind();
+
+  for (int i = 0; i < _textures.size(); i++) {
+    glActiveTexture(GL_TEXTURE0 + i);
+    glBindTexture(GL_TEXTURE_2D, _textures[i]);
+  }
 }
 
 auto Entity::draw() const -> void { _mesh.draw(); }
@@ -251,15 +296,8 @@ auto Mesh::bind() const -> void {
 
 Material::Material() : _program(0) {}
 
-Material::Material(gl::Program p, std::vector<gl::Texture> ts)
-    : _program(p), _textures(ts) {}
+Material::Material(gl::Program p) : _program(p) {}
 
-auto Material::bind() const -> void {
-  glUseProgram(_program);
-  for (int i = 0; i < _textures.size(); i++) {
-    glActiveTexture(GL_TEXTURE0 + i);
-    glBindTexture(GL_TEXTURE_2D, _textures[i]);
-  }
-}
+auto Material::bind() const -> void { glUseProgram(_program); }
 
 } // namespace cx

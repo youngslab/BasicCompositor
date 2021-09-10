@@ -17,7 +17,7 @@ struct Attribute {
 
 class Mesh {
 
-private:
+protected:
   gl::Buffer _vbo;
   gl::Buffer _ebo;
   gl::VertexArray _vao;
@@ -36,24 +36,25 @@ public:
 };
 
 class Material {
-private:
+protected:
   gl::Program _program;
-  std::vector<gl::Texture> _textures;
 
 public:
   Material();
-  Material(gl::Program p, std::vector<gl::Texture> ts);
+  Material(gl::Program p);
 
   auto bind() const -> void;
 };
 
 class Entity {
-private:
+protected:
   Material _material;
   Mesh _mesh;
+  std::vector<gl::Texture> _textures;
 
 public:
-  Entity(Mesh mesh, Material material);
+  Entity(Mesh mesh, Material material,
+	 std::vector<gl::Texture> const &textures);
 
   auto draw() const -> void;
   auto bind() const -> void;
@@ -88,6 +89,13 @@ public:
   auto swapBuffer() -> void;
 
   auto createFramebuffer(Buffer const &buffer) -> gl::Framebuffer;
+  auto createTexture(Buffer const &buffer) -> gl::Texture;
 };
+
+// Generic APIs
+
+template <typename Entity> inline auto render(Entity const &entity) {
+  entity.render();
+}
 
 } // namespace cx
