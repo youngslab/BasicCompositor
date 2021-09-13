@@ -1,8 +1,8 @@
 [submodule "thirdpary/raii"]
-	path = thirdpary/raii
+	path = thirdparty/raii
 	url = git@github.com:youngslab/raii.git
 [submodule "thirdpary/object-drm"]
-	path = thirdpary/object-drm
+	path = thirdparty/object-drm
 	url = git@github.com:youngslab/object-drm.git
 [submodule "thirdparty/object-gl"]
 	path = thirdparty/object-gl
