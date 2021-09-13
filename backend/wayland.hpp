@@ -2,16 +2,23 @@
 
 #pragma once
 
+#include "backend.hpp"
+#include "native.hpp"
+#include "EGL/egl.h"
+
+// Platform Headers
 #include <wayland-client.h>
 #include <wayland-egl.h>
 #include "wayland-xdg-shell-client-protocol.h"
-#include "ieglpaltform.hpp"
 
-namespace cx {
-class WaylandBackend : public IEglPlatform {
-private:
+namespace lunar {
+namespace backend {
+namespace native {
+
+class Wayland : public INative {
+protected:
   // Globals
-  wl_display *_display;
+  wl_display *_nativeDisplay;
   wl_registry *_registry;
   wl_shm *_shm;
   wl_compositor *_compositor;
@@ -23,13 +30,18 @@ private:
   xdg_surface *_xdgSurface;
   xdg_toplevel *_xdgToplevel;
 
+  // internal states
   bool _waitForConfigure;
+
+  EGLenum _platform;
   uint32_t _width;
   uint32_t _height;
 
 public:
-  WaylandBackend(const char *display, uint32_t width, uint32_t height);
-  ~WaylandBackend();
+  Wayland(const char *display, const char *appName, uint32_t width,
+	  uint32_t height);
+
+  ~Wayland();
 
   static void registry_global(void *data, struct wl_registry *wl_registry,
 			      uint32_t name, const char *interface,
@@ -40,11 +52,23 @@ public:
 
   auto commit() -> void;
 
+  // Platform APIs
   virtual auto getNativeDisplayType() -> void * override;
   virtual auto getNativeWindowType() -> void * override;
   virtual auto getPlatform() -> EGLenum override;
   virtual auto getWidth() -> uint32_t override;
   virtual auto getHeight() -> uint32_t override;
 };
+} // namespace native
 
-} // namespace cx
+class Wayland : public native::Wayland, public Backend {
+public:
+  Wayland(const char *display, const char *appName, uint32_t width,
+	  uint32_t height);
+
+  virtual ~Wayland();
+
+  virtual auto swap() -> void override;
+};
+} // namespace backend
+} // namespace lunar

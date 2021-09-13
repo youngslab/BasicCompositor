@@ -1,5 +1,5 @@
 
-#include "backend_drm.h"
+#include "drm.hpp"
 
 #include <drm/drm.h>
 #include <fmt/core.h>
@@ -10,7 +10,8 @@
 #include <map>
 #include <xf86drm.h>
 
-namespace cx {
+namespace lunar {
+namespace backend {
 
 /*----------------------------------------------------------------------*/
 
@@ -86,5 +87,6 @@ auto DrmBackend::commit(uint32_t handle, uint32_t pitch) -> void {
     drmModeRmFB(_drmDevice, oldFramebuffer);
   }
 }
-} // namespace cx
+} // namespace backend
+} // namespace lunar
 

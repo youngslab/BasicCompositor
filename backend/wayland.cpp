@@ -1,24 +1,20 @@
 
 
-#include "backend_wayland.hpp"
-#include <EGL/eglext.h>
-#include <stdexcept>
-#include <string.h>
-#include <wayland-egl-core.h>
+#include "wayland.hpp"
 
+namespace lunar {
+namespace backend {
+namespace native {
 
-namespace cx {
-
-void WaylandBackend::xdg_surface_configure(void *data,
-					   struct xdg_surface *xdg_surface,
-					   uint32_t serial) {
-  auto backend = (WaylandBackend *)data;
+void Wayland::xdg_surface_configure(void *data, struct xdg_surface *xdg_surface,
+				    uint32_t serial) {
+  auto backend = (Wayland *)data;
   xdg_surface_ack_configure(xdg_surface, serial);
   backend->_waitForConfigure = false;
 }
 
 static const struct xdg_surface_listener xdg_surface_listener = {
-    .configure = WaylandBackend::xdg_surface_configure,
+    .configure = Wayland::xdg_surface_configure,
 };
 
 static void xdg_wm_base_ping(void *data, struct xdg_wm_base *xdg_wm_base,
@@ -30,11 +26,10 @@ static const struct xdg_wm_base_listener xdg_wm_base_listener = {
     .ping = xdg_wm_base_ping,
 };
 
-auto WaylandBackend::registry_global(void *data,
-				     struct wl_registry *wl_registry,
-				     uint32_t name, const char *interface,
-				     uint32_t version) -> void {
-  auto waylandBackend = (WaylandBackend *)data;
+auto Wayland::registry_global(void *data, struct wl_registry *wl_registry,
+			      uint32_t name, const char *interface,
+			      uint32_t version) -> void {
+  auto waylandBackend = (Wayland *)data;
   if (strcmp(interface, wl_shm_interface.name) == 0) {
     waylandBackend->_shm =
 	(wl_shm *)wl_registry_bind(wl_registry, name, &wl_shm_interface, 1);
@@ -55,28 +50,28 @@ static void registry_global_remove(void *data, struct wl_registry *wl_registry,
 }
 
 static const struct wl_registry_listener wl_registry_listener = {
-    .global = WaylandBackend::registry_global,
+    .global = Wayland::registry_global,
     .global_remove = registry_global_remove,
 };
 
-WaylandBackend::WaylandBackend(const char *display, uint32_t width,
-			       uint32_t height)
+Wayland::Wayland(const char *display, const char *appName, uint32_t width,
+		 uint32_t height)
     : _width(width), _height(height) {
 
-  _display = wl_display_connect(NULL);
-  if (_display == nullptr) {
+  _nativeDisplay = wl_display_connect(NULL);
+  if (_nativeDisplay == nullptr) {
     throw std::runtime_error("Failed to connect wl_display.");
   }
 
   // make registry
-  _registry = wl_display_get_registry(_display);
+  _registry = wl_display_get_registry(_nativeDisplay);
   if (!_registry) {
     throw std::runtime_error("Failed to get wl_registry.");
   }
   wl_registry_add_listener(_registry, &wl_registry_listener, this);
 
   // sync
-  wl_display_roundtrip(_display);
+  wl_display_roundtrip(_nativeDisplay);
 
   // create surface
   _surface = wl_compositor_create_surface(_compositor);
@@ -90,7 +85,7 @@ WaylandBackend::WaylandBackend(const char *display, uint32_t width,
 
   // top level
   _xdgToplevel = xdg_surface_get_toplevel(_xdgSurface);
-  xdg_toplevel_set_title(_xdgToplevel, "Example client");
+  xdg_toplevel_set_title(_xdgToplevel, appName);
 
   _waitForConfigure = true;
 
@@ -98,7 +93,7 @@ WaylandBackend::WaylandBackend(const char *display, uint32_t width,
   wl_surface_commit(_surface);
 }
 
-WaylandBackend::~WaylandBackend() {
+Wayland::~Wayland() {
 
   if (_nativeWindow)
     wl_egl_window_destroy(_nativeWindow);
@@ -121,31 +116,45 @@ WaylandBackend::~WaylandBackend() {
     wl_shm_destroy(_shm);
 
   wl_registry_destroy(_registry);
-  wl_display_flush(_display);
-  wl_display_disconnect(_display);
+  wl_display_flush(_nativeDisplay);
+  wl_display_disconnect(_nativeDisplay);
 }
 
-auto WaylandBackend::getNativeDisplayType() -> void * {
-  return (void *)this->_display;
+auto Wayland::getNativeDisplayType() -> void * {
+  return (void *)this->_nativeDisplay;
 }
-auto WaylandBackend::getNativeWindowType() -> void * {
+auto Wayland::getNativeWindowType() -> void * {
   return (void *)this->_nativeWindow;
 }
 
-auto WaylandBackend::getPlatform() -> EGLenum {
-  return EGL_PLATFORM_WAYLAND_KHR;
-}
+auto Wayland::getPlatform() -> EGLenum { return EGL_PLATFORM_WAYLAND_KHR; }
 
-auto WaylandBackend::commit() -> void {
+auto Wayland::commit() -> void {
   if (_waitForConfigure) {
-    wl_display_dispatch(_display);
+    wl_display_dispatch(_nativeDisplay);
   } else {
-    wl_display_dispatch_pending(_display);
+    wl_display_dispatch_pending(_nativeDisplay);
   }
 }
 
-auto WaylandBackend::getHeight() -> uint32_t { return this->_height; }
+auto Wayland::getHeight() -> uint32_t { return this->_height; }
 
-auto WaylandBackend::getWidth() -> uint32_t { return this->_width; }
+auto Wayland::getWidth() -> uint32_t { return this->_width; }
 
-}; // namespace cx
+} // namespace native
+
+Wayland::Wayland(const char *display, const char *appName, uint32_t width,
+		 uint32_t height)
+    : native::Wayland(display, appName, width, height),
+      Backend(getPlatform(), _nativeDisplay, _nativeWindow) {}
+
+Wayland::~Wayland() {}
+
+auto Wayland::swap() -> void {
+  Backend::swap();
+  commit();
+}
+
+} // namespace backend
+} // namespace lunar
+

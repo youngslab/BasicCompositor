@@ -6,7 +6,8 @@
 #include <vector>
 #include <odrm/odrm.hpp>
 
-namespace cx {
+namespace lunar {
+namespace backend {
 
 struct DrmDisplay {
   od::ConnectorPtr connector;
@@ -37,4 +38,5 @@ public:
   auto commit(uint32_t handle, uint32_t pitch) -> void;
 };
 
-} // namespace cx
+} // namespace backend
+} // namespace lunar

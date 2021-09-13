@@ -1,30 +1,21 @@
 
+
 #pragma once
 
-#include <GLES3/gl3.h>
-#include <vector>
+#include <stdint.h>
 #include <EGL/egl.h>
 
-namespace cx {
+namespace lunar {
+namespace backend {
 
-struct Plane {
-  int fd;
-  GLint stride;
-  GLint offset;
-};
-
-struct Buffer {
-  int format;
-  GLint width;
-  GLint height;
-  std::vector<Plane> planes;
-};
-
-struct IEglPlatform {
+class INative {
+public:
+  // Platform APIs
   virtual auto getNativeDisplayType() -> void * = 0;
   virtual auto getNativeWindowType() -> void * = 0;
   virtual auto getPlatform() -> EGLenum = 0;
   virtual auto getWidth() -> uint32_t = 0;
   virtual auto getHeight() -> uint32_t = 0;
 };
-} // namespace cx
+} // namespace backend
+} // namespace lunar

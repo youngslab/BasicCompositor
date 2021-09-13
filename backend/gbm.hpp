@@ -4,12 +4,16 @@
 
 #include <gbm.h>
 #include <EGL/egl.h>
-#include "backend_drm.h"
-#include "ieglpaltform.hpp"
 
-namespace cx {
+#include "drm.hpp"
+#include "native.hpp"
+#include "backend.hpp"
 
-class GbmBackend : public IEglPlatform {
+namespace lunar {
+namespace backend {
+namespace native {
+
+class Gbm : public INative {
 
 private:
   DrmBackend _drm;
@@ -18,11 +22,11 @@ private:
   gbm_bo *_gbmBuffer;
 
 public:
-  GbmBackend(char const *drmPath);
+  Gbm(char const *drmPath);
 
   // swap
   auto commit() -> void;
-  auto createBuffer(uint32_t w, uint32_t h, uint32_t f) -> Buffer;
+  // auto createBuffer(uint32_t w, uint32_t h, uint32_t f) -> Buffer;
 
   virtual auto getNativeDisplayType() -> void * override;
   virtual auto getNativeWindowType() -> void * override;
@@ -30,5 +34,16 @@ public:
   virtual auto getWidth() -> uint32_t override;
   virtual auto getHeight() -> uint32_t override;
 };
+} // namespace native
 
-} // namespace cx
+class Gbm : public native::Gbm, public Backend {
+public:
+  Gbm(char const *drmPath);
+
+  virtual ~Gbm();
+
+  virtual auto swap() -> void override;
+};
+
+} // namespace backend
+} // namespace lunar
