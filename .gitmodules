@@ -7,3 +7,6 @@
 [submodule "thirdparty/raii"]
 	path = thirdparty/raii
 	url = git@github.com:youngslab/raii.git
+[submodule "thirdparty/generic_network_framework"]
+	path = thirdparty/generic_network_framework
+	url = git@github.com:youngslab/generic_network_framework.git
